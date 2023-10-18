@@ -67,13 +67,17 @@ class Screen(tk.Canvas):
             edgeDist = math.sqrt((relativeX ** 2) + (relativeY ** 2) + (relativeZ ** 2))
 
             #weight the line depending on how far the edge is from the camera on average
-            #note: this returns negative for anything behind the camera
-            lineWeight = 255 * (1 - (edgeDist / (2 * self.camera.distance)))
+            lineWeight = 255 * (1 - (edgeDist / (self.camera.mistMultiplier * self.camera.distance)))
+            if lineWeight < 0:
+                lineWeight = 0
+            weightString = (hex(math.floor(lineWeight)))[2:4]
+            if len(weightString) < 2:
+                weightString = "0" + weightString
 
-            lineColour = "#00ff00"
+            #lineColour = "#00ff00"
             
             #add green proportional to the line weight
-            lineColour = "#00" + (hex(math.floor(lineWeight)))[2:4] + "00"
+            lineColour = "#00" + weightString + "00"
             
             self.drawLine(lineStart, lineEnd, lineColour)
         
@@ -129,12 +133,14 @@ class Camera(Point):
     screen = 0
     lastMousePos = [0,0]    #stores the last known position of the mouse cursor for rotating the camera
     distance = 0
+    mistMultiplier = 0
 
-    def __init__(self, f = 10, d = 100, r = rotation):
+    def __init__(self, f = 10, d = 100, r = rotation, m = 1.5):
         super(Camera, self).__init__(0, 0, -d)
         self.fLength = f
         self.rotation = r
         self.distance = d
+        self.mistMultiplier = m
     
     def project3DPoint(self, x, y, z):
         camXYZ = self.coords
@@ -223,12 +229,12 @@ def getShape(fileName):
 PHI = (math.sqrt(5) + 1) / 2
 
 #startup variables
-screenWidth = 500
-screenHeight = 500
+screenWidth = 800
+screenHeight = 800
 
 #still learning how to use tkinter
 root = tk.Tk()
-myCamera = Camera(15, 5)
+myCamera = Camera(50, 5)
 myScreen = Screen(cam = myCamera, master = root, width = screenWidth, height = screenHeight, bg = "black")
 
 cubePointsEdges = getShape("cube.txt")

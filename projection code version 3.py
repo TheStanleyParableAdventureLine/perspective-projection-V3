@@ -74,7 +74,7 @@ class Screen(tk.Canvas):
             if len(weightString) < 2:
                 weightString = "0" + weightString
 
-            #lineColour = "#00ff00"
+            lineColour = "#00ff00"
             
             #add green proportional to the line weight
             lineColour = "#00" + weightString + "00"
@@ -180,6 +180,13 @@ class Camera(Point):
         self.rotation[0] += rotationDelta[0]
         self.rotation[1] += rotationDelta[1]
 
+        #clamp the camera's rotation in the yz plane between +- (pi / 2) radians
+        if self.rotation[0] > math.pi / 2:
+            self.rotation[0] = math.pi / 2
+        elif self.rotation[0] < -math.pi / 2:
+            self.rotation[0] = -math.pi / 2
+
+        #adjust camera's coordinates so that it is facing the origin [0,0,0]
         self.coords[0] = -self.distance * math.sin(self.rotation[1]) * math.cos(self.rotation[0])
         self.coords[1] = self.distance * math.sin(self.rotation[0])
         self.coords[2] = -self.distance * math.cos(self.rotation[0]) * math.cos(self.rotation[1])
@@ -234,7 +241,7 @@ screenHeight = 800
 
 #still learning how to use tkinter
 root = tk.Tk()
-myCamera = Camera(50, 5)
+myCamera = Camera(100, 10, m = 1.3)
 myScreen = Screen(cam = myCamera, master = root, width = screenWidth, height = screenHeight, bg = "black")
 
 cubePointsEdges = getShape("cube.txt")

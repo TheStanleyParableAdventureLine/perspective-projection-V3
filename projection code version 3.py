@@ -70,11 +70,13 @@ class Screen(tk.Canvas):
             lineWeight = 255 * (1 - (edgeDist / (self.camera.mistMultiplier * self.camera.distance)))
             if lineWeight < 0:
                 lineWeight = 0
+            elif lineWeight > 255:
+                lineWeight = 255
             weightString = (hex(math.floor(lineWeight)))[2:4]
             if len(weightString) < 2:
                 weightString = "0" + weightString
 
-            lineColour = "#00ff00"
+            #lineColour = "#00ff00"
             
             #add green proportional to the line weight
             lineColour = "#00" + weightString + "00"
@@ -241,22 +243,28 @@ screenHeight = 800
 
 #still learning how to use tkinter
 root = tk.Tk()
-myCamera = Camera(100, 10, m = 1.3)
+root.title("3D wireframe renderer")
+myCamera = Camera(100, 10, m = 1.5)
 myScreen = Screen(cam = myCamera, master = root, width = screenWidth, height = screenHeight, bg = "black")
 
+#slightly less repeated code than before:
 cubePointsEdges = getShape("cube.txt")
-cubePoints = cubePointsEdges[0]
-cubeEdges = cubePointsEdges[1]
-
 icoPointsEdges = getShape("icosahedron.txt")
-icoPoints = icoPointsEdges[0]
-icoEdges = icoPointsEdges[1]
+dodecaPointsEdges = getShape("dodecahedron.txt")
+octaPointsEdges = getShape("octahedron.txt")
+tetraPointsEdges = getShape("tetrahedron.txt")
 
-myCube = Shape(0,0,0, points = cubePoints, edges = cubeEdges)
-myIco = Shape(0,0,0, points = icoPoints, edges = icoEdges)
+#myCube = Shape(0,0,0, points = cubePointsEdges[0], edges = cubePointsEdges[1])
+#myIco = Shape(0,0,0, points = icoPointsEdges[0], edges = icoPointsEdges[1])
+myDodeca = Shape(0,0,0, points = dodecaPointsEdges[0], edges = dodecaPointsEdges[1])
+#myOcta = Shape(0,0,0, points = octaPointsEdges[0], edges = octaPointsEdges[1])
+#myTetra = Shape(0,0,0, points = tetraPointsEdges[0], edges = tetraPointsEdges[1])
 
 #myScreen.shapeDrawList.append(myCube)
-myScreen.shapeDrawList.append(myIco)
+#myScreen.shapeDrawList.append(myIco)
+myScreen.shapeDrawList.append(myDodeca)
+#myScreen.shapeDrawList.append(myOcta)
+#myScreen.shapeDrawList.append(myTetra)
 
 root.bind("<B1-Motion>", myCamera.moveMouse)
 root.bind("<Button-1>", myCamera.mouseDown)

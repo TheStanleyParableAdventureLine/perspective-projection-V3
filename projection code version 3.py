@@ -36,13 +36,13 @@ class Screen(tk.Canvas):
 
     #methods for converting between grid coordinates and screen coordinates
     def xyToCanvas(self, x, y):
-        canvasX = (self.height - (x * self.unitSize + self.height / 2))
-        canvasY = (y * self.unitSize + (self.width / 2))
+        canvasX = (x * self.unitSize + self.width / 2)
+        canvasY = (self.height - (y * self.unitSize + (self.height / 2)))
         return [canvasX, canvasY]
 
     def canvasToXY(self, canvasX, canvasY):
-        x = ((self.height / 2) - (self.height - canvasX)) / self.unitSize
-        y = ((self.width / 2) - canvasY) / self.unitSize
+        x = ((self.width / 2) - canvasX) / self.unitSize
+        y = ((self.height / 2) - (self.height - canvasY)) / self.unitSize
         return [x, y]
     
     #methods for drawing to the screen
@@ -79,7 +79,7 @@ class Screen(tk.Canvas):
             #lineColour = "#00ff00"
             
             #add green proportional to the line weight
-            lineColour = "#00" + weightString + "00"
+            lineColour = "#" + "00" + weightString + "00"
             
             self.drawLine(lineStart, lineEnd, lineColour)
         
@@ -109,11 +109,64 @@ class Edge():
 class Shape(Point):
     points = []
     edges = []
+    shapeFile = ""
 
-    def __init__(self, x, y, z, points = [], edges = []):
+    def __init__(self, x, y, z, fileName):
         super(Shape, self).__init__(x, y, z)
-        self.points = self.generatePoints(points)
-        self.edges = self.generateEdges(edges)
+
+        rawFile = open(fileName, "r").read()
+
+        #old code I used to remove all spaces from the file
+        #charsChecked = 0
+        #while charsChecked < len(rawFile):
+        #    if rawFile[charsChecked] == " ":
+        #        rawFile = rawFile[:charsChecked] + rawFile[charsChecked + 1:]
+        #    else:
+        #        charsChecked += 1
+                
+        self.shapeFile = rawFile.split("\n")
+        
+        
+        self.points = self.generatePoints(self.getIntData(self.shapeFile[0]))
+        self.edges = self.generateEdges(self.getIntData(self.shapeFile[1]))
+
+    
+    #function for reading data from shape files and returning it as a 2D list
+    def getIntData(self, inputList):
+
+        #print(inputList)
+
+        #cut out duplicate square brackets
+        if inputList[0:2] == "[[":
+            inputList = inputList[1:]
+        if inputList[len(inputList) - 2:len(inputList)] == "]]":
+            inputList = inputList[:len(inputList)]
+
+        #print("\n" + inputList)
+        
+        readData = inputList.split("]")
+        dataList = []
+
+        for index in range(len(readData) - 1):
+            if len(readData[index]) < 3:
+                del readData[index]
+            else:
+                if readData[index][0] == ",":
+                    readData[index] = readData[index][1:]
+                if readData[index][0] == "[":
+                    readData[index] = readData[index][1:]
+                if readData[index][0:2] == " [":
+                    readData[index] = readData[index][2:]
+                data = readData[index].split(",")
+
+                for i in range(len(data)):
+                    if "." in data[i]:
+                        data[i] = float(data[i])
+                    else:
+                        data[i] = int(data[i])
+                dataList.append(data)
+                
+        return dataList 
 
     def generatePoints(self, xyzList):
         tempPoints = []
@@ -126,6 +179,35 @@ class Shape(Point):
         for thisEdge in edgeList:
             tempEdges.append(Edge(self.points[thisEdge[0]], self.points[thisEdge[1]]))
         return tempEdges
+
+    def saveShape(self, fileName):
+        
+        self.saveFile = open(fileName, "w")
+        print("opened file \"" + fileName + "\"")
+        print("content to write:")
+        pointList = []
+        
+        for point in self.points:
+            pointList.append(point.coords)
+        print(pointList)
+        edgeList = []
+        
+        for edge in self.edges:
+            edgeStart = 0
+            edgeEnd = 0
+            
+            for index in range(len(self.points)):
+                if self.points[index] == edge.startPoint:
+                    edgeStart = index
+                if self.points[index] == edge.endPoint:
+                    edgeEnd = index
+            
+            edgeList.append([edgeStart, edgeEnd])
+            
+        print(edgeList)
+
+        self.saveFile.write(str(pointList) + "\n" + str(edgeList))
+        self.saveFile.close()
 
 
 class Camera(Point):
@@ -199,75 +281,65 @@ class Camera(Point):
     def mouseDown(self, event):
         self.lastMousePos = self.screen.canvasToXY(event.x, event.y)
 
+    #changing the focal length using the right mouse button
+    def changeFocus(self, event):
+        mousePos = self.screen.canvasToXY(event.x, event.y)
+        mouseDeltaY = mousePos[1] - self.lastMousePos[1]
 
-def getIntData(inputList):
-    readData = inputList.split("]")
-    dataList = []
+        #subtract the mouse y delta so you move the mouse up to zoom in and down to zoom out
+        self.fLength -= (mouseDeltaY / self.screen.height) * self.screen.unitSize * self.distance * self.screen.scrollRate
+        
+        if self.fLength < 0:
+            self.fLength = 0
 
-    for index in range(len(readData)):
-        if len(readData[index]) < 3:
-            del readData[index]
-        else:
-            if readData[index][0] == ",":
-                readData[index] = readData[index][1:]
-            if readData[index][0] == "[":
-                readData[index] = readData[index][1:]
-            data = readData[index].split(",")
-
-            for i in range(len(data)):
-                if "." in data[i]:
-                    data[i] = float(data[i])
-                else:
-                    data[i] = int(data[i])
-            dataList.append(data)
-            
-    return dataList
-
-def getShape(fileName):
-    shapeFile = open(fileName, "r").read().split("\n")
-    
-    readPoints = shapeFile[0]
-    pointList = getIntData(readPoints)
-
-    readEdges = shapeFile[1]
-    edgeList = getIntData(readEdges)
-            
-    return [pointList, edgeList]
+        self.lastMousePos = mousePos
+        self.screen.updateScreen()
 
 #constants
 PHI = (math.sqrt(5) + 1) / 2
 
-#startup variables
+#startup variables (normally 800)
 screenWidth = 800
 screenHeight = 800
 
 #still learning how to use tkinter
 root = tk.Tk()
 root.title("3D wireframe renderer")
-myCamera = Camera(100, 10, m = 1.5)
+myCamera = Camera(50,5, m = 1.8)
 myScreen = Screen(cam = myCamera, master = root, width = screenWidth, height = screenHeight, bg = "black")
 
-#slightly less repeated code than before:
-cubePointsEdges = getShape("cube.txt")
-icoPointsEdges = getShape("icosahedron.txt")
-dodecaPointsEdges = getShape("dodecahedron.txt")
-octaPointsEdges = getShape("octahedron.txt")
-tetraPointsEdges = getShape("tetrahedron.txt")
-
-#myCube = Shape(0,0,0, points = cubePointsEdges[0], edges = cubePointsEdges[1])
-#myIco = Shape(0,0,0, points = icoPointsEdges[0], edges = icoPointsEdges[1])
-myDodeca = Shape(0,0,0, points = dodecaPointsEdges[0], edges = dodecaPointsEdges[1])
-#myOcta = Shape(0,0,0, points = octaPointsEdges[0], edges = octaPointsEdges[1])
-#myTetra = Shape(0,0,0, points = tetraPointsEdges[0], edges = tetraPointsEdges[1])
+#myCube = Shape(0,0,0, "cube.txt")
+#myIco = Shape(0,0,0, "icosahedron.txt")
+#myDodeca = Shape(0,0,0, "dodecahedron.txt")
+#myOcta = Shape(0,0,0, "octahedron.txt")
+#myTetra = Shape(0,0,0, "tetrahedron.txt")
+#myRhombic = Shape(0,0,0, "rhombicDodecahedron.txt")
+#myTria = Shape(0,0,0, "rhombicTriacontahedron.txt")
+#testShape = Shape(0,0,0, "saveTest.txt")
 
 #myScreen.shapeDrawList.append(myCube)
 #myScreen.shapeDrawList.append(myIco)
-myScreen.shapeDrawList.append(myDodeca)
+#myScreen.shapeDrawList.append(myDodeca)
 #myScreen.shapeDrawList.append(myOcta)
 #myScreen.shapeDrawList.append(myTetra)
+#myScreen.shapeDrawList.append(myRhombic)
+#myScreen.shapeDrawList.append(myTria)
+#myScreen.shapeDrawList.append(testShape)
 
+#myTria.saveShape("saveTest.txt")
+
+#ask the user which file they want to load
+fileToLoad = input("file name: ")
+if "." not in fileToLoad:
+    fileToLoad = fileToLoad + ".txt"
+displayShape = Shape(0, 0, 0, fileToLoad)
+myScreen.shapeDrawList.append(displayShape)
+
+#functions to call when the mouse is pressed or dragged in the graphics window
 root.bind("<B1-Motion>", myCamera.moveMouse)
 root.bind("<Button-1>", myCamera.mouseDown)
+root.bind("<B3-Motion>", myCamera.changeFocus)
+root.bind("<Button-3>", myCamera.mouseDown)
 
 myScreen.updateScreen()
 myScreen.mainloop()
